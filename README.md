@@ -213,5 +213,5 @@ If this tool is useful in your published work, a citation or acknowledgement is 
 
 ```
 Geurten, B. R. H. (2026). Arena Annotator: Interactive polygon annotation
-for scientific arenas (v1.0). https://github.com/<your-handle>/arena_annotator
+for scientific arenas (v1.0). https://github.com/zerotonin/arena_annotator
 ```
