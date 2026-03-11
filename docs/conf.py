@@ -16,12 +16,18 @@ release = "1.0.0"
 
 # -- General configuration ---------------------------------------------------
 extensions = [
+    "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
-    "sphinx.ext.intersphinx",
     "sphinx.ext.githubpages",
 ]
+
+# MyST settings — allow Markdown sources alongside RST
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
 
 # Napoleon settings — support Google and NumPy style docstrings
 napoleon_google_docstrings = True
@@ -40,16 +46,10 @@ autodoc_default_options = {
 # Mock imports for modules that need a display (matplotlib)
 autodoc_mock_imports = ["matplotlib", "PIL", "numpy"]
 
-templates_path = ["_templates"]
+templates_path = []
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = "furo"
 html_title = "Arena Annotator"
-html_static_path = ["_static"]
-
-# Intersphinx mapping
-intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-}
+html_static_path = []

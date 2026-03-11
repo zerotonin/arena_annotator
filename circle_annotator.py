@@ -55,7 +55,10 @@ FILL_ALPHA = 0.25
 LABEL_FONTSIZE = 9
 N_POLYGON_VERTICES = 64  # vertices when approximating circle as polygon for export
 
-matplotlib.rcParams["toolbar"] = "None"
+try:
+    matplotlib.rcParams["toolbar"] = "None"
+except TypeError:
+    pass  # mocked matplotlib during doc builds
 
 
 # ┌─────────────────────────────────────────────────────────────────────┐

@@ -50,7 +50,10 @@ FILL_COLOUR = "orange"
 FILL_ALPHA = 0.40
 LABEL_FONTSIZE = 9
 
-matplotlib.rcParams["toolbar"] = "None"
+try:
+    matplotlib.rcParams["toolbar"] = "None"
+except TypeError:
+    pass  # mocked matplotlib during doc builds
 
 
 # ┌─────────────────────────────────────────────────────────────────────┐
