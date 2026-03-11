@@ -1,28 +1,25 @@
-Arena Annotator
-===============
+Arena Annotator — API Documentation
+====================================
 
-.. include:: ../README.md
-   :parser: myst_parser.sphinx_
+Interactive polygon & circle annotation for scientific arenas.
 
-API Reference
-=============
+`Back to GitHub <https://github.com/zerotonin/arena_annotator>`_
 
-arena_annotator
----------------
+arena_annotator (Polygon)
+-------------------------
 
 .. automodule:: arena_annotator
    :members:
    :undoc-members:
    :show-inheritance:
 
-circle_annotator
-----------------
+circle_annotator (Circle)
+-------------------------
 
 .. automodule:: circle_annotator
    :members:
    :undoc-members:
    :show-inheritance:
-
 
 Indices and tables
 ==================

@@ -16,18 +16,11 @@ release = "1.0.0"
 
 # -- General configuration ---------------------------------------------------
 extensions = [
-    "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "sphinx.ext.githubpages",
 ]
-
-# MyST settings — allow Markdown sources alongside RST
-source_suffix = {
-    ".rst": "restructuredtext",
-    ".md": "markdown",
-}
 
 # Napoleon settings — support Google and NumPy style docstrings
 napoleon_google_docstrings = True
@@ -43,7 +36,7 @@ autodoc_default_options = {
     "show-inheritance": True,
 }
 
-# Mock imports for modules that need a display (matplotlib)
+# Mock imports so Sphinx can process modules without their runtime deps
 autodoc_mock_imports = ["matplotlib", "PIL", "numpy"]
 
 templates_path = []

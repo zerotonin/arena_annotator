@@ -5,19 +5,14 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment
 concurrency:
   group: "pages"
   cancel-in-progress: false
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-docs:
@@ -35,12 +30,14 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r docs/requirements.txt
+          echo "--- Installed packages ---"
+          pip list
 
       - name: Build Sphinx documentation
         run: |
           cd docs
-          sphinx-build -W -b html . _build/html
+          python -m sphinx -v -b html . _build/html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
