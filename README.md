@@ -220,6 +220,7 @@ Department of Zoology, University of Otago, Dunedin, New Zealand
 
 - [University profile](https://www.otago.ac.nz/zoology/staff/dr-bart-geurten)
 - [Google Scholar](https://scholar.google.de/citations?user=OAm7kgcAAAAJ&hl=en)
+- [ORCID](https://orcid.org/0000-0002-1816-3241)
 
 ## License
 
