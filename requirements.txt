@@ -1,0 +1,10 @@
+# Runtime
+matplotlib
+numpy
+Pillow
+
+# Documentation
+sphinx>=7.0
+furo
+sphinx-autodoc-typehints
+myst-parser

@@ -4,26 +4,31 @@
  ║  ░█▀█░█▀▄░█▀▀░█░█░█▀█░░░█▀█░█░█░█░█░█░█░░█░░█▀█░░█░░█░█░█▀▄░░         ║
  ║  ░▀░▀░▀░▀░▀▀▀░▀░▀░▀░▀░░░▀░▀░▀░▀░▀░▀░▀▀▀░░▀░░▀░▀░░▀░░▀▀▀░▀░▀░░         ║
  ║                                                                       ║
- ║   Interactive polygon annotation for scientific arenas    v1.0        ║
- ║   ── click. drag. export. science. ──                                 ║
+ ║   Interactive polygon & circle annotation for scientific arenas       ║
+ ║   ── click. drag. export. science. ──                        v1.0     ║
  ╚═══════════════════════════════════════════════════════════════════════╝
 ```
 
 # Arena Annotator
 
-A single-file, dependency-light tool for annotating polygon regions in experimental images. Built for the common workflow in behavioural neuroscience where you need to map arena boundaries from camera frames to real-world coordinates.
+A single-file, dependency-light tool for annotating polygon and circular regions in experimental images. Built for the common workflow in behavioural neuroscience where you need to map arena boundaries from camera frames to real-world coordinates.
 
 Click vertices onto your arena, drag to adjust, export to standard formats. Sessions are crash-proof and resumable. That's it.
+
+| Tool | Shape | Use case |
+|------|-------|----------|
+| `arena_annotator.py` | Polygon | Rectangular, hexagonal, or irregular arenas |
+| `circle_annotator.py` | Circle | Petri dishes, round open fields, circular mazes |
 
 ## Motivation
 
 If you track animals in arenas — open fields, mazes, thermal gradient setups — you eventually need to define the arena boundary in pixel coordinates so you can project tracked positions into millimetres. This usually means writing a quick script with `cv2.setMouseCallback` for the twentieth time, losing the annotations when the script crashes, and then doing it again for 200 images.
 
-Arena Annotator replaces that loop. It persists every click to disk immediately, resumes where you left off, lets you propagate vertices across frames with one keypress, and exports to the formats your downstream pipeline already expects.
+Arena Annotator replaces that loop. It persists every click to disk immediately, resumes where you left off, lets you propagate annotations across frames with one keypress, and exports to the formats your downstream pipeline already expects.
 
 ## When to use this — and when not to
 
-This tool does one thing: mark a fixed polygon on a batch of images. If that's what you need, it will take you 30 seconds to install and less to learn.
+This tool does one thing: mark a fixed shape (polygon or circle) on a batch of images. If that's what you need, it will take you 30 seconds to install and less to learn.
 
 If you need more — multi-class labelling, freehand masks, bounding boxes, team workflows, model-in-the-loop pre-annotation — use one of the full-featured annotation platforms:
 
@@ -35,7 +40,7 @@ If you need more — multi-class labelling, freehand masks, bounding boxes, team
 | [LabelMe](https://github.com/labelmeai/labelme) | Polygonal image annotation | Open source. Closest in spirit to Arena Annotator but more general-purpose. Good if you need freehand polygons and multiple object classes. |
 | [Roboflow](https://roboflow.com/) | End-to-end CV pipeline | Commercial, free tier. Annotation + augmentation + training + deployment in one platform. |
 
-Arena Annotator fills the gap below all of these: when you just need a polygon on each frame, you don't want Docker, and you don't want to register for anything.
+Arena Annotator fills the gap below all of these: when you just need a shape on each frame, you don't want Docker, and you don't want to register for anything.
 
 ## Installation
 
@@ -51,15 +56,18 @@ Or with conda:
 conda install matplotlib numpy pillow
 ```
 
-Then just put `arena_annotator.py` somewhere on your `$PATH`, or call it directly:
+Then just put `arena_annotator.py` and/or `circle_annotator.py` somewhere on your `$PATH`, or call them directly:
 
 ```bash
 python arena_annotator.py --help
+python circle_annotator.py --help
 ```
 
 No Qt bindings, no OpenCV, no compiled extensions. Works on macOS, Linux, and Windows.
 
-## Quick start
+---
+
+## Polygon Annotator — Quick start
 
 Annotate a rectangular arena across a directory of frames:
 
@@ -73,7 +81,7 @@ python arena_annotator.py \
 
 This opens a matplotlib window. Left-click to place the four vertices in order, drag to adjust. Press → to advance to the next image. Press Q when done — COCO JSON and YOLO label files appear in `./trial_images/`.
 
-## Usage
+### Polygon usage
 
 ```
 arena_annotator [-h] (-d DIR | -i IMAGE | -f FILELIST)
@@ -90,20 +98,7 @@ arena_annotator [-h] (-d DIR | -i IMAGE | -f FILELIST)
 | `-o`, `--output` | Output directory. Default: same as image source |
 | `-a`, `--formats` | Export formats, comma-separated: `coco`, `yolo`, `voc`. Default: `coco` |
 
-### Examples
-
-```bash
-# Hexagonal arena, single image, all three export formats
-python arena_annotator.py -i frame.png -v 6 -l "p1,p2,p3,p4,p5,p6" -a coco,yolo,voc
-
-# From a file list, output to a separate directory
-python arena_annotator.py -f paths.txt -v 4 -o ./annotations/
-
-# Minimal — just a triangle, default labels, COCO only
-python arena_annotator.py -d ./imgs/ -v 3
-```
-
-## Keybindings
+### Polygon keybindings
 
 | Input | Action |
 |-------|--------|
@@ -115,75 +110,92 @@ python arena_annotator.py -d ./imgs/ -v 3
 | **X** | Reset all vertices on current image (with Y/N confirmation) |
 | **L** | Toggle vertex labels |
 | **F** | Toggle polygon fill |
-| **H** | Help overlay (also shows current file path and output directory) |
+| **H** | Help overlay |
 | **S** | Save & export now |
 | **Q** / Esc | Save & quit |
 
-## Export formats
+---
 
-### COCO JSON
+## Circle Annotator — Quick start
 
-A single `annotations_coco.json` covering all images. Standard COCO structure with polygon segmentation, bounding box, area, and an `attributes.vertex_labels` field carrying your label names.
+Annotate a round arena across a directory of frames:
 
-```json
-{
-  "annotations": [{
-    "id": 1,
-    "image_id": 1,
-    "category_id": 1,
-    "segmentation": [[102.5, 48.3, 537.8, 51.1, 534.2, 389.7, 98.9, 386.5]],
-    "bbox": [98.9, 48.3, 438.9, 341.4],
-    "area": 147316.32,
-    "attributes": {"vertex_labels": ["TL", "TR", "BR", "BL"]}
-  }]
-}
+```bash
+python circle_annotator.py \
+    -d ./petri_dish_images/ \
+    -a coco,yolo
 ```
 
-### YOLO v8 polygon
+This opens a matplotlib window. **First click** places the circle centre. **Second click** sets the radius (distance from centre to click). After that, **drag the centre** to reposition and **drag the rim handle** (cyan diamond at 3-o'clock) to resize. Press → to advance. Press Q when done.
 
-One `.txt` per image in `yolo_labels/`. Coordinates normalised to `[0, 1]` by image dimensions. Class is always `0`.
+### Circle usage
 
 ```
-0 0.160156 0.100625 0.840312 0.106458 0.834688 0.811875 0.154531 0.805208
+circle_annotator [-h] (-d DIR | -i IMAGE | -f FILELIST)
+                 [-o OUTPUT] [-a FORMATS]
 ```
 
-### Pascal VOC XML
+| Flag | Description |
+|------|-------------|
+| `-d`, `--directory` | Directory of images |
+| `-i`, `--image` | Single image file |
+| `-f`, `--filelist` | Text file with one image path per line |
+| `-o`, `--output` | Output directory. Default: same as image source |
+| `-a`, `--formats` | Export formats: `coco`, `yolo`, `voc`. Default: `coco` |
 
-One `.xml` per image in `voc_annotations/`. Standard `<bndbox>` for compatibility plus a `<polygon>` element with per-vertex coordinates and labels.
+### Circle keybindings
 
-```xml
-<annotation>
-  <filename>frame_0042.png</filename>
-  <size><width>640</width><height>480</height><depth>3</depth></size>
-  <object>
-    <name>arena</name>
-    <bndbox>
-      <xmin>98</xmin><ymin>48</ymin><xmax>537</xmax><ymax>389</ymax>
-    </bndbox>
-    <polygon>
-      <point><x>102.5</x><y>48.3</y><label>TL</label></point>
-      <point><x>537.8</x><y>51.1</y><label>TR</label></point>
-      ...
-    </polygon>
-  </object>
-</annotation>
-```
+| Input | Action |
+|-------|--------|
+| **1st left click** | Set circle centre |
+| **2nd left click** | Set radius |
+| **Drag centre** | Reposition circle |
+| **Drag rim handle** | Resize circle |
+| **Right click** | Delete annotation (clear centre + radius) |
+| ← / → | Previous / next image |
+| **R** | Repeat circle from nearest preceding annotated image |
+| **X** | Reset circle (with Y/N confirmation) |
+| **L** | Toggle labels (centre coords, radius) |
+| **F** | Toggle circle fill |
+| **H** | Help overlay |
+| **S** | Save & export now |
+| **Q** / Esc | Save & quit |
 
-## Session persistence
-
-Every vertex change is instantly written to a JSON sidecar file (`<image_stem>_annotation.json`) in the output directory. If the process crashes, the window is closed accidentally, or you come back the next day, the annotator picks up exactly where you left off.
+### Circle sidecar format
 
 ```json
 {
   "image_path": "/data/experiment_01/frame_0042.png",
   "image_width": 640,
   "image_height": 480,
-  "vertices": [[102.5, 48.3], [537.8, 51.1], [534.2, 389.7], [98.9, 386.5]],
-  "labels": ["TL", "TR", "BR", "BL"]
+  "centre": [312.5, 245.8],
+  "radius": 198.3
 }
 ```
 
-These sidecars are also a convenient intermediate format if your downstream code just wants to read the raw pixel coordinates directly.
+### Circle in export formats
+
+The circle is approximated as a 64-sided polygon for COCO/YOLO/VOC export, so it works seamlessly with downstream pipelines that expect polygonal masks. The native circle parameters (centre, radius) are preserved in COCO `attributes` and VOC `<circle>` elements.
+
+---
+
+## Export formats
+
+### COCO JSON
+
+A single `annotations_coco.json` covering all images. For polygons: standard polygon segmentation with `attributes.vertex_labels`. For circles: polygon approximation with `attributes.shape`, `attributes.centre_x`, `attributes.centre_y`, `attributes.radius`.
+
+### YOLO v8 polygon
+
+One `.txt` per image in `yolo_labels/`. Coordinates normalised to `[0, 1]`. Class is always `0`.
+
+### Pascal VOC XML
+
+One `.xml` per image in `voc_annotations/`. Standard `<bndbox>` plus `<polygon>` (or `<circle>` + `<polygon>` for circle annotations).
+
+## Session persistence
+
+Every change is instantly written to a JSON sidecar file in the output directory. If the process crashes, the window is closed accidentally, or you come back the next day, the annotator picks up exactly where you left off.
 
 ## Design notes
 
@@ -191,9 +203,15 @@ These sidecars are also a convenient intermediate format if your downstream code
 
 **matplotlib backend.** Chosen deliberately over OpenCV `highgui` or Qt for maximum portability. The only trade-off is that rendering during drag is not buttery smooth on very large images — but it's fine for the 640×480 to 2048×2048 range typical in behavioural setups.
 
-**Smart label placement.** Labels flip to the opposite side of the vertex when it's near an image edge, so annotations at arena borders remain readable.
+**Repeat key (R).** In longitudinal experiments with a fixed camera, the arena barely moves between sessions. Press R to copy the annotation from the last annotated frame and adjust from there — typically saves 90% of the clicking.
 
-**Repeat key (R).** In longitudinal experiments with a fixed camera, the arena barely moves between sessions. Press R to copy the polygon from the last annotated frame and adjust from there — typically saves 90% of the clicking.
+## Documentation
+
+API documentation is auto-generated from docstrings and published via GitHub Pages:
+
+**[📖 Read the docs →](https://zerotonin.github.io/arena_annotator/)**
+
+The docs are rebuilt automatically on every push to `main` via GitHub Actions.
 
 ## Author
 
@@ -209,9 +227,24 @@ Department of Zoology, University of Otago, Dunedin, New Zealand
 
 ## Citation
 
-If this tool is useful in your published work, a citation or acknowledgement is appreciated:
+If this tool is useful in your published work, a citation or acknowledgement is appreciated. You can use the **"Cite this repository"** button on GitHub, or cite as:
 
 ```
-Geurten, B. R. H. (2026). Arena Annotator: Interactive polygon annotation
-for scientific arenas (v1.0). https://github.com/zerotonin/arena_annotator
+Geurten, B. R. H. (2026). Arena Annotator: Interactive polygon and circle
+annotation for scientific arenas (v1.0).
+https://github.com/zerotonin/arena_annotator
+```
+
+### BibTeX
+
+```bibtex
+@software{geurten2026arena,
+  author       = {Geurten, Bart R.H.},
+  title        = {{Arena Annotator: Interactive polygon and circle
+                   annotation for scientific arenas}},
+  year         = {2026},
+  version      = {1.0.0},
+  url          = {https://github.com/zerotonin/arena_annotator},
+  license      = {MIT}
+}
 ```

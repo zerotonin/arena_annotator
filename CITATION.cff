@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Arena Annotator: Interactive polygon and circle annotation for scientific arenas"
+type: software
+version: "1.0.0"
+date-released: "2026-01-01"
+license: MIT
+url: "https://github.com/zerotonin/arena_annotator"
+repository-code: "https://github.com/zerotonin/arena_annotator"
+authors:
+  - family-names: Geurten
+    given-names: "Bart R.H."
+    orcid: "https://orcid.org/0000-0002-3947-1653"
+    affiliation: "Department of Zoology, University of Otago, Dunedin, New Zealand"
+keywords:
+  - annotation
+  - arena
+  - polygon
+  - circle
+  - behavioural neuroscience
+  - computer vision
+  - COCO
+  - YOLO
+  - Pascal VOC
+  - image annotation
+abstract: >-
+  A single-file, dependency-light tool for annotating polygon and
+  circular regions in experimental images. Built for the common
+  workflow in behavioural neuroscience where you need to map arena
+  boundaries from camera frames to real-world coordinates.
+  Supports polygon annotation (arena_annotator) and circle
+  annotation (circle_annotator) with export to COCO JSON,
+  YOLO-v8 polygon, and Pascal VOC XML.
