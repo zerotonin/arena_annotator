@@ -382,6 +382,7 @@ class CircleAnnotator:
         self._dragging_rim = False
         self._exported = False
         self._confirm_reset = False
+        self._goto_buffer = None   # None = not in go-to mode; str = digits typed
 
         self._load_all_sidecars()
 
@@ -497,7 +498,13 @@ class CircleAnnotator:
         return ann["centre"] is not None and ann["radius"] is not None and ann["radius"] > 0
 
     def _rim_handle_xy(self):
-        """Return (x, y) of the rim drag-handle (3-o'clock position).
+        """Return (x, y) of the rim drag-handle on the circle.
+
+        The handle only encodes the radius, so it can sit at any angle; it is
+        kept at the angle where the user last clicked/dragged it (``rim_angle``,
+        default 3-o'clock).  Because that click is clamped to the image, the
+        handle stays inside the image even when the rim itself extends past the
+        crop edge -- so it never lands off-canvas and needs no view resizing.
 
         Returns:
             Tuple (x, y), or None if the circle is incomplete.
@@ -506,7 +513,8 @@ class CircleAnnotator:
         if ann is None or ann["centre"] is None or ann["radius"] is None:
             return None
         cx, cy = ann["centre"]
-        return (cx + ann["radius"], cy)
+        a = ann.get("rim_angle", 0.0)
+        return (cx + ann["radius"] * math.cos(a), cy + ann["radius"] * math.sin(a))
 
     # ── rendering « painting the screen » ────────────────────────────
     def _render(self):
@@ -631,6 +639,23 @@ class CircleAnnotator:
                 ),
             )
 
+        # Go-to input prompt
+        if self._goto_buffer is not None:
+            n = len(self.images)
+            self.ax.text(
+                0.5, 0.5,
+                f"Go to image  [1-{n}]:  {self._goto_buffer}_\n\n"
+                "type digits  /  Enter to jump  /  Backspace  /  Esc to cancel",
+                transform=self.ax.transAxes,
+                fontsize=14, fontfamily="monospace",
+                ha="center", va="center", color="white", zorder=20,
+                bbox=dict(
+                    boxstyle="round,pad=1.0",
+                    facecolor="#0072B2", alpha=0.9,
+                    edgecolor="white", linewidth=2,
+                ),
+            )
+
         # Title / status bar
         if self._is_complete:
             state = "COMPLETE"
@@ -667,6 +692,8 @@ class CircleAnnotator:
             "\n"
             "KEYS\n"
             "  Left/Right   Previous / Next image\n"
+            "  U / Tab      Jump to first unlabelled image\n"
+            "  G            Go to image number (type + Enter)\n"
             "  R            Repeat circle from last image\n"
             "  X            Reset circle (with confirmation)\n"
             "  L            Toggle labels\n"
@@ -762,6 +789,7 @@ class CircleAnnotator:
                 x = float(np.clip(event.xdata, 0, ann["image_width"]))
                 y = float(np.clip(event.ydata, 0, ann["image_height"]))
                 ann["radius"] = float(np.hypot(x - cx, y - cy))
+                ann["rim_angle"] = math.atan2(y - cy, x - cx)  # keep handle where clicked
                 self._save_sidecar(self._path)
                 self._render()
 
@@ -804,9 +832,17 @@ class CircleAnnotator:
             return
 
         if self._dragging_centre and ann["centre"] is not None:
+            # Keep the rim marker anchored in image space: moving the centre
+            # re-fits the radius/angle to the *stationary* handle rather than
+            # translating the whole circle.
+            handle = self._rim_handle_xy()
             x = float(np.clip(event.xdata, 0, ann["image_width"]))
             y = float(np.clip(event.ydata, 0, ann["image_height"]))
             ann["centre"] = (x, y)
+            if handle is not None:
+                hx, hy = handle
+                ann["radius"] = float(np.hypot(hx - x, hy - y))
+                ann["rim_angle"] = math.atan2(hy - y, hx - x)
             self._render()
 
         elif self._dragging_rim and ann["centre"] is not None:
@@ -814,6 +850,7 @@ class CircleAnnotator:
             x = float(np.clip(event.xdata, 0, ann["image_width"]))
             y = float(np.clip(event.ydata, 0, ann["image_height"]))
             ann["radius"] = float(np.hypot(x - cx, y - cy))
+            ann["rim_angle"] = math.atan2(y - cy, x - cx)  # handle follows the cursor
             self._render()
 
     def _on_key(self, event):
@@ -836,6 +873,22 @@ class CircleAnnotator:
                 self._render()
             else:
                 self._confirm_reset = False
+                self._render()
+            return
+
+        # --- Go-to input sub-state (digits only; strings can't enter) ----
+        if self._goto_buffer is not None:
+            if key == "enter":
+                self._commit_goto()
+            elif key == "escape":
+                self._goto_buffer = None
+                self._render()
+            elif key == "backspace":
+                self._goto_buffer = self._goto_buffer[:-1]
+                self._render()
+            elif key is not None and len(key) == 1 and key.isdigit():
+                if len(self._goto_buffer) < 6:
+                    self._goto_buffer += key
                 self._render()
             return
 
@@ -863,6 +916,13 @@ class CircleAnnotator:
             self.show_help = not self.show_help
             self._render()
 
+        elif key in ("u", "tab"):
+            self._goto_first_unlabelled()
+
+        elif key == "g":
+            self._goto_buffer = ""
+            self._render()
+
         elif key == "r":
             self._repeat_previous()
 
@@ -886,6 +946,36 @@ class CircleAnnotator:
         """Window close handler — save state and export before shutdown."""
         self._save_current()
         self._export_all()
+
+    def _is_labelled(self, idx):
+        """True when image ``idx`` has a complete circle (centre + radius)."""
+        ann = self.annotations.get(self.images[idx])
+        return bool(ann and ann["centre"] is not None
+                    and ann["radius"] is not None and ann["radius"] > 0)
+
+    def _goto_first_unlabelled(self):
+        """Jump to the first image without a complete circle (U / Tab)."""
+        for i in range(len(self.images)):
+            if not self._is_labelled(i):
+                self._save_current()
+                self.current_idx = i
+                self._render()
+                return
+        print("[circle_annotator] all images are labelled.")
+
+    def _commit_goto(self):
+        """Parse the go-to buffer and jump; reject 0, > max, empty, non-int."""
+        buf = (self._goto_buffer or "").strip()
+        self._goto_buffer = None
+        try:
+            num = int(buf)
+        except (ValueError, TypeError):
+            self._render()
+            return
+        if 1 <= num <= len(self.images):
+            self._save_current()
+            self.current_idx = num - 1
+        self._render()
 
     def _repeat_previous(self):
         """Copy circle from the nearest preceding annotated image.
@@ -976,6 +1066,8 @@ def parse_args():
             "  Drag rim handle      Resize circle\n"
             "  Right click          Delete annotation\n"
             "  Left / Right arrow   Previous / Next image\n"
+            "  U / Tab              Jump to first unlabelled image\n"
+            "  G                    Go to image number (type digits + Enter)\n"
             "  R                    Repeat circle from previous image\n"
             "  X                    Reset circle (with confirmation)\n"
             "  L                    Toggle labels\n"
