@@ -30,7 +30,7 @@ import os
 import sys
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict
 from xml.dom import minidom
 from xml.etree.ElementTree import Element, SubElement, tostring
 
@@ -366,7 +366,7 @@ class CircleAnnotator:
         formats: List of export format strings (``coco``, ``yolo``, ``voc``).
     """
 
-    def __init__(self, images, output_dir, formats):
+    def __init__(self, images, output_dir, formats, grid=False, context_dir=None):
         self.images = images
         self.output_dir = output_dir
         self.formats = formats
@@ -384,9 +384,25 @@ class CircleAnnotator:
         self._confirm_reset = False
         self._goto_buffer = None   # None = not in go-to mode; str = digits typed
 
+        # Optional split view: the main annotator (left) beside a 4x4 grid of
+        # pre-sampled context frames (right).  The frames are supplied as images
+        # (baked by an external tool) -- the annotator stays vanilla, no video/CV.
+        self.grid = bool(grid)
+        self.context_dir = context_dir
+        self._ctx_for = None       # image the context frames were last drawn for
+        self.ctx_axes = []
+        self.ctx_rings = []
+
         self._load_all_sidecars()
 
-        self.fig, self.ax = plt.subplots(1, 1, figsize=(13, 8))
+        if self.grid:
+            self.fig = plt.figure(figsize=(16, 8))
+            gs = self.fig.add_gridspec(4, 8, wspace=0.03, hspace=0.03)
+            self.ax = self.fig.add_subplot(gs[:, :4])
+            self.ctx_axes = [self.fig.add_subplot(gs[r, 4 + c])
+                             for r in range(4) for c in range(4)]
+        else:
+            self.fig, self.ax = plt.subplots(1, 1, figsize=(13, 8))
         self.fig.canvas.manager.set_window_title("Circle Annotator")
         self.fig.subplots_adjust(left=0.01, right=0.99, top=0.94, bottom=0.01)
 
@@ -671,7 +687,64 @@ class CircleAnnotator:
         )
         self.ax.set_title(status, fontsize=10, loc="left", pad=6)
         self.ax.set_axis_off()
+        self._render_context()
         self.fig.canvas.draw_idle()
+
+    def _context_frames(self, image_path):
+        """Sorted pre-sampled context frames for an image, or [] if none.
+
+        Convention: ``<context_dir or <image_dir>/context>/<image_stem>/*.png``.
+        The frames are baked by an external tool -- the annotator never touches
+        video (stays vanilla).
+        """
+        if not self.grid:
+            return []
+        p = Path(image_path)
+        base = Path(self.context_dir) if self.context_dir else p.parent / "context"
+        d = base / p.stem
+        return sorted(str(f) for f in d.glob("*.png")) if d.is_dir() else []
+
+    def _render_context(self):
+        """Draw the 16 context frames once per image; move the ring patches live.
+
+        The frames are static, so they are imshow-n only when the image changes;
+        every render just repositions the 16 ring patches to the current circle,
+        which keeps dragging responsive.
+        """
+        if not self.grid or not self.ctx_axes:
+            return
+        frames = self._context_frames(self._path)
+        if self._ctx_for != self._path:                    # new image -> redraw frames
+            self._ctx_for = self._path
+            self.ctx_rings = []
+            for i, ax in enumerate(self.ctx_axes):
+                ax.clear()
+                ax.set_xticks([])
+                ax.set_yticks([])
+                if i < len(frames):
+                    try:
+                        ax.imshow(np.array(Image.open(frames[i])))
+                    except Exception:                      # noqa: BLE001
+                        ax.set_axis_off()
+                    ring = MplCircle((0, 0), 0, fill=False, edgecolor=EDGE_COLOUR,
+                                     linewidth=1.2, visible=False)
+                    ax.add_patch(ring)
+                    self.ctx_rings.append(ring)
+                else:
+                    ax.set_axis_off()
+                    self.ctx_rings.append(None)
+        ann = self._ann
+        centre = ann["centre"] if ann else None
+        radius = ann["radius"] if ann else None
+        for ring in self.ctx_rings:                         # live: just move the patches
+            if ring is None:
+                continue
+            if centre is not None and radius:
+                ring.set_center((centre[0], centre[1]))
+                ring.set_radius(radius)
+                ring.set_visible(True)
+            else:
+                ring.set_visible(False)
 
     def _render_help(self, img_w, img_h):
         """Draw the translucent help overlay with keybindings and file info.
@@ -1105,6 +1178,16 @@ def parse_args():
             "Choices: coco, yolo, voc (default: coco)."
         ),
     )
+    parser.add_argument(
+        "-g", "--grid", action="store_true",
+        help="Split view: annotator (left) + a 4x4 grid of pre-sampled context "
+             "frames (right), ring shown live on all. Frames must be baked to "
+             "<context-dir>/<image_stem>/*.png (no video handling here).",
+    )
+    parser.add_argument(
+        "--context-dir", type=str, default=None,
+        help="Root of the pre-sampled context frames (default: <image_dir>/context).",
+    )
 
     args = parser.parse_args()
 
@@ -1152,7 +1235,7 @@ def main():
     print(f"  Formats:  {', '.join(formats)}")
     print("  Press H inside the window for help.\n")
 
-    CircleAnnotator(images, output_dir, formats)
+    CircleAnnotator(images, output_dir, formats, grid=args.grid, context_dir=args.context_dir)
 
 
 if __name__ == "__main__":
